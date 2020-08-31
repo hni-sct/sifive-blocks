@@ -209,8 +209,8 @@ trait GenericTimer {
   // generate periodic interrupt
   protected val s = (count >> scale)(cmpWidth-1, 0)
   // reset counter when fed or elapsed
-  protected val elapsed = Vec.tabulate(ncmp){i => Mux(s(cmpWidth-1) && center(i), ~s, s) >= cmp(i)}
-  protected val countReset = feed || (zerocmp && elapsed(0))
+  protected lazy val elapsed = Vec.tabulate(ncmp){i => Mux(s(cmpWidth-1) && center(i), ~s, s) >= cmp(i)}
+  protected lazy val countReset = feed || (zerocmp && elapsed(0))
   when (countReset) { count := 0 }
 
   io.regs.cfg.read := new GenericTimerCfgReg(maxcmp, scaleWidth).fromBits(0.U)
@@ -221,7 +221,7 @@ trait GenericTimer {
   io.regs.cfg.read.running := countAwake || oneShot
   io.regs.cfg.read.countAlways := countAlways
   io.regs.cfg.read.deglitch := deglitch
-  io.regs.cfg.read.deglitch := zerocmp
+  io.regs.cfg.read.zerocmp := zerocmp
   io.regs.cfg.read.sticky := rsten || sticky
   io.regs.cfg.read.scale := scale
 
