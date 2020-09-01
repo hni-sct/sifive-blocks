@@ -26,8 +26,8 @@ object WatchdogTimer {
   val key = 0x51F15E
 }
 
-class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hniWatchdogTimer.Modes = hniWatchdogTimer.timeout) extends MultiIOModule with GenericTimer {
-  protected def prefix = "wdog"
+class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hniWatchdogTimer.Modes = hniWatchdogTimer.timeout, pprefix : String = "wdog") extends MultiIOModule with GenericTimer {
+  def prefix = pprefix
   protected def countWidth = pcountWidth//31
   protected def cmpWidth = pcmpWidth//16
   protected def ncmp = pncmp//1
@@ -38,7 +38,8 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
     (countAlways || (countAwake && !corerstSynchronized))&&(~io.rst)
   }
   override protected lazy val rsten = AsyncResetReg(io.regs.cfg.write.sticky, io.regs.cfg.write_sticky && unlocked)(0)
-  protected lazy val ip = RegEnable(Vec(Seq(io.regs.cfg.write.ip(0) || elapsed(0))), (io.regs.cfg.write_ip(0) && unlocked) || elapsed(0))
+  protected lazy val elapsed_ip = if(pMode == hniWatchdogTimer.timeout){elapsed(0)}else{elapsed(0) || elapsed(1)}
+  protected lazy val ip = RegEnable(Vec(Seq(io.regs.cfg.write.ip(0) || elapsed_ip)), (io.regs.cfg.write_ip(0) && unlocked) || elapsed_ip) 
   override protected lazy val unlocked = io.unlocked
   protected lazy val feed = {
     val food = 0xD09F00D
@@ -89,6 +90,7 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
     center = Seq.fill(ncmp){RegFieldDesc.reserved},
     extra = Seq.fill(ncmp){RegFieldDesc.reserved},
     gang = Seq.fill(ncmp){RegFieldDesc.reserved}
+
   )
 
   lazy val io = IO(new GenericTimerIO(regWidth, ncmp, maxcmp, scaleWidth, countWidth, cmpWidth) {
