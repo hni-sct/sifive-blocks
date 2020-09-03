@@ -53,7 +53,7 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
       case 0 => if (pMode == hniWatchdogTimer.timeout){
                   s >= cmp(i)
                 }else if (pMode == hniWatchdogTimer.window){
-                  (s <= cmp(i)) && feed
+                  (s <= cmp(i)) && feed && (s =/= 0.U)
                 }else{
                   Mux(mode.get, (s <= cmp(i)) && feed && (s =/= 0.U), s >= cmp(i))
                 }

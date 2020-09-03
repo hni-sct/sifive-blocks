@@ -180,5 +180,5 @@ object WatchdogArray {
 //make -f VWatchdogArray.mk
 //g++ -I obj_dir -I/usr/share/verilator/include VWatchdogArray.cpp VWatchdogArray__Trace.cpp VWatchdogArray__Trace__Slow.cpp VWatchdogArray__Syms.cpp usr/watchdogreg.cpp usr/testbench.cpp /usr/share/verilator/include/verilated.cpp /usr/share/verilator/include/verilated_vcd_c.cpp -o usr/testbench.o 
 object mWatchdogArray extends App {
-  chisel3.Driver.execute(Array("--target-dir", "generated/WatchdogArray"), () => new WatchdogArray( Dogs=3, Resets=2, Ints=1, Mode= hniWatchdogTimer.both, PRBS = true, PRBS_Set = Set(5,6), Key = 0x51F15E ))
+  chisel3.Driver.execute(Array("--target-dir", "generated/WatchdogArray"), () => new WatchdogArray( Dogs=3, Resets=2, Ints=1, Mode= hniWatchdogTimer.both, PRBS = true, PRBS_Set = Set(6,7), Key = 0x51F15E ))
 }

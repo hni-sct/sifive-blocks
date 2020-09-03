@@ -5,11 +5,12 @@ import Chisel.ImplicitConversions._
 import chisel3.util._
 
 class FibonacciLFSR(
-  width: Int,
-  taps: Set[Int],
-  init: Int = 0
-  ) extends Module {
-      require(taps.size>0)
+    width: Int,
+    taps: Set[Int],
+    init: Int = 0
+    ) extends Module {
+    require(taps.size>0)
+
   val io = IO(new Bundle{
       val out = Output(UInt(width.W))
       val increment = Input(Bool())
@@ -17,8 +18,12 @@ class FibonacciLFSR(
   )
 
     val taps_seq = taps.toSeq
+    for(i<- 0 until taps_seq.length){
+        require(taps_seq(i)>0)
+        require(taps_seq(i)<=width)
+    }
     val in = if(taps_seq.length > 1){
-                Seq.tabulate(taps_seq.length)(i => io.out( taps_seq(i) )).reduce(_^_)
+                Seq.tabulate(taps_seq.length)(i => io.out( taps_seq(i)-1 )).reduce(_^_)
             }else{
                 io.out(taps_seq(0))
             }
