@@ -8,6 +8,10 @@ import sifive.blocks.util.SRLatch
 
 import sifive.blocks.util.{SlaveRegIF}
 
+import hni.blocks.devices.watchdog._
+//import sifive.blocks.devices.watchdog
+
+
 class WakeupCauses extends Bundle {
   val awakeup = Bool()
   val dwakeup = Bool()
@@ -57,7 +61,7 @@ class PMURegs(c: PMUConfig) extends Bundle {
   val sleepProgram = Vec(c.programLength, new SlaveRegIF(32))
 }
 
-class PMUCore(c: PMUConfig)(resetIn: Bool) extends Module(_reset = resetIn) {
+class PMUCore(c: PMUConfig, Key: Int)(resetIn: Bool) extends Module(_reset = resetIn) {
   val io = new Bundle {
     val wakeup = new WakeupCauses().asInput
     val control = Valid(new PMUSignals)
@@ -69,7 +73,7 @@ class PMUCore(c: PMUConfig)(resetIn: Bool) extends Module(_reset = resetIn) {
   val awake = Reg(init = Bool(true))
   val unlocked = {
     val writeAny = WatchdogTimer.writeAnyExceptKey(io.regs, io.regs.key)
-    RegEnable(io.regs.key.write.bits === WatchdogTimer.key && !writeAny, Bool(false), io.regs.key.write.valid || writeAny)
+    RegEnable(io.regs.key.write.bits === Key && !writeAny, Bool(false), io.regs.key.write.valid || writeAny)
   }
   val wantSleep = RegEnable(Bool(true), Bool(false), io.regs.sleep.write.valid && unlocked)
   val pc = Reg(init = UInt(0, log2Ceil(c.programLength)))
@@ -123,7 +127,7 @@ class PMUCore(c: PMUConfig)(resetIn: Bool) extends Module(_reset = resetIn) {
   }
 }
 
-class PMU(val c: PMUConfig) extends Module {
+class PMU(val c: PMUConfig, Key : Int) extends Module {
   val io = new Bundle {
     val wakeup = new WakeupCauses().asInput
     val control = new PMUSignals().asOutput
@@ -132,7 +136,7 @@ class PMU(val c: PMUConfig) extends Module {
   }
 
   val coreReset = Reg(next = Reg(next = reset))
-  val core = Module(new PMUCore(c)(resetIn = coreReset))
+  val core = Module(new PMUCore(c,Key)(resetIn = coreReset))
 
   io <> core.io
   core.io.wakeup.reset := false // this is implied by resetting the PMU

@@ -24,15 +24,16 @@ class MockAONWrapperPins extends Bundle {
   val pmu = new MockAONWrapperPMUIO()
 }
 
-class MockAONWrapperBundle extends Bundle {
-  val pins = new MockAONWrapperPins()
+class MockAONWrapperBundle(Dogs: Int) extends Bundle {
+  val pins = new MockAONWrapperPins
   val rsts = new MockAONMOffRstIO()
+  val wd_ext_reset = if(Dogs > 1) Some(Vec(Dogs-1,Bool())) else None
 }
 
 class MockAONWrapper(w: Int, c: MockAONParams)(implicit p: Parameters) extends LazyModule {
 
   val aon = LazyModule(new TLMockAON(w, c))
-
+  
   // We only need to isolate the signals
   // coming from MOFF to AON,
   // since AON is never off while MOFF is on.
@@ -50,13 +51,21 @@ class MockAONWrapper(w: Int, c: MockAONParams)(implicit p: Parameters) extends L
   val intnode = IntSyncCrossingSource(alreadyRegistered = true) := aon.intnode
 
   lazy val module = new LazyModuleImp(this) {
-    val io = IO(new MockAONWrapperBundle {
+    val io = IO(new MockAONWrapperBundle(c.Dogs) {
       val rtc  = Clock(OUTPUT)
       val ndreset = Bool(INPUT)
+      
     })
 
     val aon_io = aon.module.io
     val pins = io.pins
+
+    // -----------------------------------------------
+    // Connect WD Resets
+    // -----------------------------------------------
+    if(c.Dogs>1){
+      io.wd_ext_reset.get := aon_io.wd_ext_reset.get
+    }
 
     // -----------------------------------------------
     // Generation of aonrst

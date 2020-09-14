@@ -9,11 +9,11 @@ import freechips.rocketchip.util.AsyncResetReg
 import freechips.rocketchip.regmapper._
 import sifive.blocks.util.{SlaveRegIF, GenericTimerIO, GenericTimer, GenericTimerCfgDescs, DefaultGenericTimerCfgDescs}
 
-class WatchdogArrayIO(Dogs:Int,Resets:Int,regWidth:Int,ncmp:Int,countWidth:Int,cmpWidth:Int ) extends Bundle{
+class WatchdogArrayIO(Dogs:Int,Resets:Int,regWidth:Int,ncmp:Int,countWidth:Int,cmpWidth:Int, PulseWidth: Int ) extends Bundle{
   val mux = new SlaveRegIF(Resets)
-  val pulsewidth = new SlaveRegIF(regWidth)
+  val pulsewidth = new SlaveRegIF(PulseWidth)
   val timerIO = new GenericTimerIO( regWidth,  ncmp,  4,  4,  countWidth, cmpWidth)
-  override def cloneType = (new WatchdogArrayIO(Dogs,Resets,regWidth,ncmp,countWidth,cmpWidth)).asInstanceOf[this.type]
+  override def cloneType = (new WatchdogArrayIO(Dogs,Resets,regWidth,ncmp,countWidth,cmpWidth,PulseWidth)).asInstanceOf[this.type]
 }
 
 class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Modes, PulseWidth: Int = 32, Offset: Int = 0, 
@@ -34,32 +34,13 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
 
     val inv = new SlaveRegIF(Resets)
     val key = new SlaveRegIF(32)
-    val WDIO = Vec(Dogs,new WatchdogArrayIO(Dogs,Resets,regWidth,ncmp,countWidth,cmpWidth))
+    val WDIO = Vec(Dogs,new WatchdogArrayIO(Dogs,Resets,regWidth,ncmp,countWidth,cmpWidth,PulseWidth))
 
     val outputs = Output(Vec(Resets,Bool()))
     val interrupts = Output(Vec(Ints,Bool()))
   })
 
-  // Register
-  val inv_reg = RegEnable(io.inv.write.bits, io.inv.write.valid && unlocked)
-  io.inv.read := inv_reg
-
-  val mux_reg = for(i <- 0 until Dogs) yield {
-    val reg = RegEnable(io.WDIO(i).mux.write.bits, io.WDIO(i).mux.write.valid && unlocked)
-    io.WDIO(i).mux.read := reg
-    reg
-  }
-
-  val pulsewidth_reg = for(i <- 0 until Dogs) yield {
-    val reg = RegEnable(io.WDIO(i).pulsewidth.write.bits, io.WDIO(i).pulsewidth.write.valid && unlocked)
-    io.WDIO(i).pulsewidth.read := reg
-    reg
-  }
-
   // Unlock
-  
-  
-
   protected lazy val unlocked = {
     val writeAnyseq = for(i<- 0 until Dogs) yield {
         WatchdogArray.writeAnyExceptKey(io.WDIO(i))
@@ -78,6 +59,21 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
   }
   io.key.read := unlocked
 
+  // Register
+  val inv_reg = RegEnable(io.inv.write.bits, io.inv.write.valid && unlocked)
+  io.inv.read := inv_reg
+
+  val mux_reg = for(i <- 0 until Dogs) yield {
+    val reg = RegEnable(io.WDIO(i).mux.write.bits, io.WDIO(i).mux.write.valid && unlocked)
+    io.WDIO(i).mux.read := reg
+    reg
+  }
+
+  val pulsewidth_reg = for(i <- 0 until Dogs) yield {
+    val reg = RegEnable(io.WDIO(i).pulsewidth.write.bits, io.WDIO(i).pulsewidth.write.valid && unlocked)
+    io.WDIO(i).pulsewidth.read := reg
+    reg
+  }
 
   // Signals
   val mux_help = Wire(Vec(Resets,Vec(Dogs,Bool())))
@@ -135,14 +131,14 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
     gang = Seq.fill(ncmp){RegFieldDesc.reserved}
   )
 
-  protected def width_desc(dog:Int): RegFieldDesc = RegFieldDesc(s"${prefix_dog}${dog}_width", "PulseWidth Register", volatile=true)
-  protected def mux_desc(dog:Int): RegFieldDesc = RegFieldDesc(s"${prefix_dog}${dog}_mux", "Mux Register", volatile=true)
+  protected def pulsewidth_desc(dog:Int): RegFieldDesc = RegFieldDesc(s"${prefix_dog}${dog}_pulsewidth", "PulseWidth Register")
+  protected def mux_desc(dog:Int): RegFieldDesc = RegFieldDesc(s"${prefix_dog}${dog}_mux", "Mux Register")
   protected def key_desc: RegFieldDesc = RegFieldDesc(s"${prefix}_key", "Key Register")
-  protected def inv_desc: RegFieldDesc = RegFieldDesc(s"${prefix}_inv", "Inversion Register", volatile=true)
+  protected def inv_desc: RegFieldDesc = RegFieldDesc(s"${prefix}_inv", "Inversion Register")
 }
 
 object WatchdogArray {
-  val DogWidth = 44
+  val DogWidth = 48
 
   def writeAnyExceptKey(regs: WatchdogArrayIO): Bool = {
     val tmp = WatchdogTimer.writeAnyExceptKey(regs.timerIO.regs , regs.timerIO.regs.key)
@@ -161,9 +157,9 @@ object WatchdogArray {
     val cmpRegs = (arr.io.WDIO(dog).timerIO.regs.cmp zip arr.cmp_desc(dog)).zipWithIndex map { case ((r, d), i) => (8 + i) -> (r, d) }
     val otherRegs = for ((i, (r, d)) <- (regs ++ cmpRegs)) yield (offset + regBytes*i) -> Seq(r.toRegField(Some(d)))
 
-    val pulsewidth = Seq( offset + (DogWidth-regBytes) -> Seq(arr.io.WDIO(dog).pulsewidth.toRegField(Some(arr.width_desc(dog)))) )
-    val mux = Seq( offset + DogWidth -> Seq(arr.io.WDIO(dog).mux.toRegField(Some(arr.mux_desc(dog)))) )
-    pulsewidth ++ mux ++ cfgRegs ++ otherRegs
+    val pulsewidth = Seq( offset + (DogWidth-2*regBytes) -> Seq(arr.io.WDIO(dog).pulsewidth.toRegField(Some(arr.pulsewidth_desc(dog)))) )
+    val mux = Seq( offset + (DogWidth-regBytes) -> Seq(arr.io.WDIO(dog).mux.toRegField(Some(arr.mux_desc(dog)))) )
+    cfgRegs ++ otherRegs ++ pulsewidth ++ mux
   }
 
   // Seq( (i1, reg1), (i2,reg2) )  -> This sequence holds elements, with i1 offset of reg1 etc. ++ concats inner elements

@@ -1,5 +1,5 @@
 // See LICENSE for license details.
-package sifive.blocks.devices.mockaon
+package sifive.blocks.devices.watchdog
 
 import Chisel._
 import Chisel.ImplicitConversions._

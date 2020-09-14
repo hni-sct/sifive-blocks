@@ -31,7 +31,7 @@ trait HasPeripheryMockAONBundle {
 
 trait HasPeripheryMockAONModuleImp extends LazyModuleImp with HasPeripheryMockAONBundle {
   val outer: HasPeripheryMockAON
-  val aon = IO(new MockAONWrapperBundle)
+  val aon = IO(new MockAONWrapperBundle(outer.mockAONParams.Dogs))
 
   aon <> outer.aon.module.io
 
