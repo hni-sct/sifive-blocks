@@ -46,7 +46,7 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
     unlocked && io.regs.feed.write.valid && io.regs.feed.write.bits === food
   }
 
-  protected lazy val mode = if(pMode == hniWatchdogTimer.both){ Some(RegEnable(io.regs.cfg.write.deglitch, io.regs.cfg.write_deglitch && unlocked)) }else{ None }
+  override protected lazy val deglitch = if(pMode == hniWatchdogTimer.both){ RegEnable(io.regs.cfg.write.deglitch, io.regs.cfg.write_deglitch && unlocked) }else{ Bool(false) }
 
   override protected lazy val elapsed = Vec.tabulate(ncmp){i => 
     i match{
@@ -55,11 +55,11 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
                 }else if (pMode == hniWatchdogTimer.window){
                   (s <= cmp(i)) && feed && (s =/= 0.U)
                 }else{
-                  Mux(mode.get, (s <= cmp(i)) && feed && (s =/= 0.U), s >= cmp(i))
+                  Mux(deglitch, (s <= cmp(i)) && feed && (s =/= 0.U), s >= cmp(i))
                 }
                   
       case _ => if(pMode==hniWatchdogTimer.both){
-                  (s >= cmp(i)) && mode.get
+                  (s >= cmp(i)) && deglitch
                 }else{
                   s >= cmp(i)
                 }
