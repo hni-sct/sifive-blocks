@@ -79,7 +79,6 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
   val mux_help = Wire(Vec(Resets,Vec(Dogs,Bool())))
   val PulseWidthCounter = RegInit(0.asTypeOf(Vec(Dogs,UInt(PulseWidth.W))))
 
-  //val result: Nothing = pulsewidth_reg(0)
   // Add Watchdog Modules and connect signals
   val wdogs = for (i <- 0 until Dogs) yield
   {
@@ -95,6 +94,7 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
 
       wdog
   }
+  
   // Length of ResetPulse
   for (i <- 0 until Dogs){
     when(wdogs(i).io.rst){

@@ -47,7 +47,7 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
   }
 
   protected lazy val mode = if(pMode == hniWatchdogTimer.both){ Some(RegEnable(io.regs.cfg.write.deglitch, io.regs.cfg.write_deglitch && unlocked)) }else{ None }
-  //protected lazy val mode = RegEnable(io.regs.cfg.write.deglitch, io.regs.cfg.write_deglitch && unlocked)
+
   override protected lazy val elapsed = Vec.tabulate(ncmp){i => 
     i match{
       case 0 => if (pMode == hniWatchdogTimer.timeout){
@@ -65,7 +65,7 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
                 }
     }  
   }
-  //override protected lazy val countReset = feed || (zerocmp && elapsed.asUInt().orR())
+  override protected lazy val countReset = feed || (zerocmp && elapsed.asUInt().orR())
 
   // The Scala Type-Chekcher seems to have a bug and I get a null pointer during the Scala compilation
   // if I don't do this temporary assignment.
@@ -80,12 +80,7 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
 
   override protected lazy val cfg_desc = DefaultGenericTimerCfgDescs("wdog", ncmp).copy(
     sticky = tmpStickyDesc,
-    deglitch = tmpdeglitch,//RegFieldDesc.reserved, //if (pMode == hniWatchdogTimer.both){
-                //  RegFieldDesc("wdogmode", "Sets the Watchdog Mode 0 = Timeout, 1 = Window", reset=Some(0))
-                //}else{
-                //  RegFieldDesc.reserved
-                //},
-    
+    deglitch = tmpdeglitch,
     running = RegFieldDesc("wdogcoreawake", "Increment the watchdog counter if the processor is not asleep", reset=Some(0)),
     center = Seq.fill(ncmp){RegFieldDesc.reserved},
     extra = Seq.fill(ncmp){RegFieldDesc.reserved},
@@ -100,8 +95,8 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
     val rst = Bool(OUTPUT)
   }
   )
-  //io.rst := AsyncResetReg(Bool(true), rsten && elapsed(0))
-  val output_reset = Wire(Bool())
+
+  val output_reset = RegInit(false.B)
   output_reset := rsten && elapsed.asUInt().orR()
   io.rst := AsyncResetReg(Bool(true), output_reset.asClock(), reset || io.output_reset)
 }
