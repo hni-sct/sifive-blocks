@@ -82,7 +82,7 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
   // Add Watchdog Modules and connect signals
   val wdogs = for (i <- 0 until Dogs) yield
   {
-      val wdog = Module(new WatchdogTimer(pcountWidth = countWidth, pcmpWidth = cmpWidth, pncmp = ncmp, pMode = Mode, pprefix = s"${prefix_dog}${i}"))
+      val wdog = Module(new WatchdogTimer(pcountWidth = countWidth, pcmpWidth = cmpWidth,  pMode = Mode))
       if(i < Ints){
         io.interrupts(i) := wdog.io.ip(0)
       }

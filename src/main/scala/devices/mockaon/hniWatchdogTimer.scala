@@ -26,11 +26,11 @@ object WatchdogTimer {
   val key = 0x51F15E
 }
 
-class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hniWatchdogTimer.Modes = hniWatchdogTimer.timeout, pprefix : String = "wdog") extends MultiIOModule with GenericTimer {
-  def prefix = pprefix
+class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16, pMode : hniWatchdogTimer.Modes = hniWatchdogTimer.timeout) extends MultiIOModule with GenericTimer {
+  protected def prefix = "wdog"
   protected def countWidth = pcountWidth//31
   protected def cmpWidth = pcmpWidth//16
-  protected def ncmp = pncmp//1
+  protected def ncmp = if(pMode == hniWatchdogTimer.timeout){1}else{2}  //pncmp//1
   protected lazy val countAlways = AsyncResetReg(io.regs.cfg.write.countAlways, io.regs.cfg.write_countAlways && unlocked)(0)
   override protected lazy val countAwake = AsyncResetReg(io.regs.cfg.write.running, io.regs.cfg.write_running && unlocked)(0)
   protected lazy val countEn = {
@@ -38,15 +38,20 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
     (countAlways || (countAwake && !corerstSynchronized))&&(~io.rst)
   }
   override protected lazy val rsten = AsyncResetReg(io.regs.cfg.write.sticky, io.regs.cfg.write_sticky && unlocked)(0)
-  protected lazy val elapsed_ip = if(pMode == hniWatchdogTimer.timeout){elapsed(0)}else{elapsed(0) || elapsed(1)}
-  protected lazy val ip = RegEnable(Vec(Seq(io.regs.cfg.write.ip(0) || elapsed_ip)), (io.regs.cfg.write_ip(0) && unlocked) || elapsed_ip) 
+  protected lazy val ip = RegEnable(Vec(Seq(io.regs.cfg.write.ip(0) || elapsed.asUInt().orR())), (io.regs.cfg.write_ip(0) && unlocked) || elapsed.asUInt().orR()) 
   override protected lazy val unlocked = io.unlocked
   protected lazy val feed = {
     val food = 0xD09F00D
     unlocked && io.regs.feed.write.valid && io.regs.feed.write.bits === food
   }
 
-  override protected lazy val deglitch = if(pMode == hniWatchdogTimer.both){ RegEnable(io.regs.cfg.write.deglitch, io.regs.cfg.write_deglitch && unlocked) }else{ Bool(false) }
+  override protected lazy val deglitch = if(pMode == hniWatchdogTimer.both){ 
+      RegEnable(io.regs.cfg.write.deglitch, io.regs.cfg.write_deglitch && unlocked) 
+    }else if(pMode == hniWatchdogTimer.timeout){ 
+      Bool(false) 
+    }else{
+      Bool(true) 
+    }
 
   override protected lazy val elapsed = Vec.tabulate(ncmp){i => 
     i match{
@@ -102,5 +107,5 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16,pncmp:Int=1, pMode : hni
 }
 //java -jar rocket-chip/sbt-launch.jar ++2.12.4 "runMain hni.blocks.devices.watchdog.mWatchdog"
 object mWatchdog extends App {
-  chisel3.Driver.execute(Array("--target-dir", "generated/Watchdog"), () => new WatchdogTimer(pncmp=2, pMode=hniWatchdogTimer.both))
+  chisel3.Driver.execute(Array("--target-dir", "generated/Watchdog"), () => new WatchdogTimer( pMode=hniWatchdogTimer.both))
 }
