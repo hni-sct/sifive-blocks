@@ -5,7 +5,7 @@ import Chisel._
 import Chisel.ImplicitConversions._
 import chisel3.experimental.MultiIOModule
 import freechips.rocketchip.util.AsyncResetReg
-import freechips.rocketchip.regmapper.{RegFieldDesc}
+import freechips.rocketchip.regmapper.{RegFieldDesc, RegFieldAccessType}
 
 import sifive.blocks.util.{SlaveRegIF, GenericTimer, GenericTimerIO, GenericTimerCfgRegIFC, DefaultGenericTimerCfgDescs}
 
@@ -80,7 +80,7 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16, pMode : hniWatchdogTime
   val tmpdeglitch = if (pMode == hniWatchdogTimer.both){
                   RegFieldDesc("wdogmode", "Sets the Watchdog Mode 0 = Timeout, 1 = Window", reset=Some(0))
                 }else{
-                  RegFieldDesc.reserved
+                  RegFieldDesc("wdogmode", "Readback the Watchdog Mode 0 = Timeout, 1 = Window", access=RegFieldAccessType.R)
                 }
 
   override protected lazy val cfg_desc = DefaultGenericTimerCfgDescs("wdog", ncmp).copy(
@@ -101,9 +101,7 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16, pMode : hniWatchdogTime
   }
   )
 
-  val output_reset = RegInit(false.B)
-  output_reset := rsten && elapsed.asUInt().orR()
-  io.rst := AsyncResetReg(Bool(true), output_reset.asClock(), reset || io.output_reset)
+   io.rst := AsyncResetReg(~io.output_reset, (rsten && elapsed.asUInt.orR) || io.output_reset)
 }
 //java -jar rocket-chip/sbt-launch.jar ++2.12.4 "runMain hni.blocks.devices.watchdog.mWatchdog"
 object mWatchdog extends App {
