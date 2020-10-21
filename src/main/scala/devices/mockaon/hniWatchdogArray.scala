@@ -20,7 +20,6 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
                     PRBS : Boolean = false, PRBS_Set : Set[Int] = Set(31,28), Key :Int = 0x51F15E, 
                     regWidth: Int = 32, countWidth: Int=31, cmpWidth: Int=16) extends Module {
 
-  require((Dogs >0) && (Dogs <= 32))
   require((Resets >=0) && (Resets <= 32))
   require((Ints >=0) && (Ints <= Dogs))
   require((PulseWidth >=0) && (PulseWidth <= 32))
@@ -41,7 +40,7 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
   })
 
   // Unlock
-  protected lazy val unlocked = {
+  protected lazy val unlocked : Bool = {
     val writeAnyseq = for(i<- 0 until Dogs) yield {
         WatchdogArray.writeAnyExceptKey(io.WDIO(i))
     }
@@ -51,11 +50,10 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
     }else{
       val key_lfsr = Module(new FibonacciLFSR(32, PRBS_Set,Key))
       val out =  AsyncResetReg(io.key.write.bits === key_lfsr.io.out && !writeAny, io.key.write.valid || writeAny)(0)
-      val unlocked_ff = RegNext(out)
-      key_lfsr.io.increment := (~out) && unlocked_ff
+      //val unlocked_ff = RegNext(out)
+      key_lfsr.io.increment := writeAny && out
       out      
     }
-
   }
   io.key.read := unlocked
 
@@ -107,8 +105,8 @@ class WatchdogArray(Dogs: Int, Resets: Int, Ints: Int, Mode: hniWatchdogTimer.Mo
   }
 
   // Multiplex Watchdog to Outputs
-  for(i <- 0 to Resets-1){
-    for(x <- 0 to Dogs-1){
+  for(i <- 0 until Resets){
+    for(x <- 0 until Dogs){
       mux_help(i)(x) := mux_reg(x)(i) && (wdogs(x).io.rst )
     }
     io.outputs(i) := mux_help(i).asUInt.orR ^ inv_reg(i)
@@ -176,5 +174,5 @@ object WatchdogArray {
 //make -f VWatchdogArray.mk
 //g++ -I obj_dir -I/usr/share/verilator/include VWatchdogArray.cpp VWatchdogArray__Trace.cpp VWatchdogArray__Trace__Slow.cpp VWatchdogArray__Syms.cpp usr/watchdogreg.cpp usr/testbench.cpp /usr/share/verilator/include/verilated.cpp /usr/share/verilator/include/verilated_vcd_c.cpp -o usr/testbench.o 
 object mWatchdogArray extends App {
-  chisel3.Driver.execute(Array("--target-dir", "generated/WatchdogArray"), () => new WatchdogArray( Dogs=3, Resets=2, Ints=1, Mode= hniWatchdogTimer.both, PRBS = true, PRBS_Set = Set(6,7), Key = 0x51F15E ))
+  chisel3.Driver.execute(Array("--target-dir", "generated/WatchdogArray"), () => new WatchdogArray( Dogs=9, Resets=2, Ints=1, Mode= hniWatchdogTimer.both, PulseWidth=32, Offset = 0, PRBS = true, PRBS_Set = Set(6,7,30), Key = 0x51F15E, regWidth = 32, countWidth = 31, cmpWidth =16  ))
 }

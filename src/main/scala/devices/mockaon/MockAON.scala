@@ -9,7 +9,7 @@ import freechips.rocketchip.tilelink._
 
 import sifive.blocks.util.GenericTimer
 import hni.blocks.devices.watchdog._
-//import sifive.blocks.devices.watchdog
+//import sifive.blocks.devices.watchdog._
 
 case class MockAONParams(
     address: BigInt = BigInt(0x10000000),
@@ -22,7 +22,7 @@ case class MockAONParams(
   def backupRegOffset: Int = 0x80
   def pmuOffset: Int = 0x100
   def Key : Int = 0x51F15E
-  def Dogs: Int = 2
+  def Dogs: Int = 1
   def Dogs_Interrupts: Int = 1
 }
 
@@ -84,15 +84,15 @@ trait HasMockAONModuleContents extends MultiIOModule with HasRegMap {
       yield (c.pmuOffset + c.regBytes*i) -> Seq(r.toRegField())
   }
   interrupts(1) := rtc.io.ip(0)
-/*
-  val wdog = Module(new WatchdogTimer)
+
+  /*val wdog = Module(new WatchdogTimer)
   io.wdog_rst := wdog.io.rst
   wdog.io.corerst := pmu.io.control.corerst
   interrupts(0) := wdog.io.ip(0)
 */
   require(c.Dogs > 0)
   require(c.Dogs_Interrupts > 0)
-  val wdog = Module(new WatchdogArray( Dogs=c.Dogs, Resets=c.Dogs, Ints=c.Dogs_Interrupts, Mode= hniWatchdogTimer.both, Key = c.Key ))
+  val wdog = Module(new WatchdogArray( Dogs=c.Dogs, Resets=c.Dogs, Ints=c.Dogs_Interrupts, Mode= hniWatchdogTimer.timeout, Key = c.Key ))
   io.wdog_rst := wdog.io.outputs(0)
   wdog.io.corerst := pmu.io.control.corerst
   interrupts(0) := wdog.io.interrupts(0)
@@ -100,7 +100,7 @@ trait HasMockAONModuleContents extends MultiIOModule with HasRegMap {
     io.wd_ext_reset.get(i-1) := wdog.io.outputs(i)
   }
   for(i <- 1 until c.Dogs_Interrupts){
-    interrupts(2+i) := wdog.io.interrupts(i)
+    interrupts(1+i) := wdog.io.interrupts(i)
   }
 
   // If there are multiple lfclks to choose from, we can mux them here.

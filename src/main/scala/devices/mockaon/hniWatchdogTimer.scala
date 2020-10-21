@@ -56,17 +56,17 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16, pMode : hniWatchdogTime
   override protected lazy val elapsed = Vec.tabulate(ncmp){i => 
     i match{
       case 0 => if (pMode == hniWatchdogTimer.timeout){
-                  s >= cmp(i)
+                  (s >= cmp(i)) 
                 }else if (pMode == hniWatchdogTimer.window){
                   (s <= cmp(i)) && feed && (s =/= 0.U)
                 }else{
-                  Mux(deglitch, (s <= cmp(i)) && feed && (s =/= 0.U), s >= cmp(i))
+                  Mux(deglitch, (s <= cmp(i)) && feed && (s =/= 0.U), s >= cmp(i)) 
                 }
                   
       case _ => if(pMode==hniWatchdogTimer.both){
                   (s >= cmp(i)) && deglitch
                 }else{
-                  s >= cmp(i)
+                  s >= cmp(i) 
                 }
     }  
   }
@@ -100,10 +100,11 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16, pMode : hniWatchdogTime
     val rst = Bool(OUTPUT)
   }
   )
-
-   io.rst := AsyncResetReg(~io.output_reset, (rsten && elapsed.asUInt.orR) || io.output_reset)
+  val elapsed_rtrig = elapsed.asUInt.orR && ~RegNext(elapsed.asUInt.orR)  // If Not rTrig it will toggle with Pulsewidth
+  val rsten_rtrig = rsten && ~RegNext(rsten)
+  io.rst := AsyncResetReg(~io.output_reset, (rsten && elapsed_rtrig) || (rsten_rtrig && elapsed.asUInt.orR) || io.output_reset)
 }
 //java -jar rocket-chip/sbt-launch.jar ++2.12.4 "runMain hni.blocks.devices.watchdog.mWatchdog"
 object mWatchdog extends App {
-  chisel3.Driver.execute(Array("--target-dir", "generated/Watchdog"), () => new WatchdogTimer( pMode=hniWatchdogTimer.both))
+  chisel3.Driver.execute(Array("--target-dir", "generated/Watchdog"), () => new WatchdogTimer(pcountWidth = 31, pcmpWidth = 16, pMode=hniWatchdogTimer.both))
 }

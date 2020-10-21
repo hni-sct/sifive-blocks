@@ -45,5 +45,5 @@ class FibonacciLFSR(
 }
 // java -jar rocket-chip/sbt-launch.jar ++2.12.4 "runMain hni.blocks.util.mFibonacci"
 object mFibonacci extends App {
-  chisel3.Driver.execute(Array("--target-dir", "generated/LFSR"), () => new FibonacciLFSR( width=32, taps = Set(4, 3),0x55555 ))
+  chisel3.Driver.execute(Array("--target-dir", "generated/LFSR"), () => new FibonacciLFSR( width=15, taps = Set(4, 3),0x55555 ))
 }
