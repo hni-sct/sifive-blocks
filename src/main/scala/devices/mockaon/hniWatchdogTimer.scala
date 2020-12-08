@@ -33,9 +33,9 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16, pMode : hniWatchdogTime
   protected def ncmp = if(pMode == hniWatchdogTimer.timeout){1}else{2}  //pncmp//1
   protected lazy val countAlways = AsyncResetReg(io.regs.cfg.write.countAlways, io.regs.cfg.write_countAlways && unlocked)(0)
   override protected lazy val countAwake = AsyncResetReg(io.regs.cfg.write.running, io.regs.cfg.write_running && unlocked)(0)
-  protected lazy val countEn = {
+  override protected lazy val countEn = {
     val corerstSynchronized = Reg(next = Reg(next = io.corerst))
-    (countAlways || (countAwake && !corerstSynchronized))&&(~io.rst)
+    (countAlways || (countAwake && !corerstSynchronized)) && (~elapsed_wire) && (~io.rst)
   }
   override protected lazy val rsten = AsyncResetReg(io.regs.cfg.write.sticky, io.regs.cfg.write_sticky && unlocked)(0)
   protected lazy val ip = RegEnable(Vec(Seq(io.regs.cfg.write.ip(0) || elapsed.asUInt().orR())), (io.regs.cfg.write_ip(0) && unlocked) || elapsed.asUInt().orR()) 
@@ -71,7 +71,9 @@ class WatchdogTimer(pcountWidth:Int=31,pcmpWidth:Int=16, pMode : hniWatchdogTime
     }  
   }
   override protected lazy val countReset = feed || (zerocmp && elapsed.asUInt().orR())
-
+  lazy val elapsed_wire = Wire(Bool())
+  elapsed_wire := elapsed.asUInt().orR()
+  
   // The Scala Type-Chekcher seems to have a bug and I get a null pointer during the Scala compilation
   // if I don't do this temporary assignment.
   val tmpStickyDesc =  RegFieldDesc("wdogrsten", "Controls whether the comparator output can set the wdogrst bit and hence cause a full reset.",
